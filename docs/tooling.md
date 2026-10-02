@@ -17,6 +17,23 @@
 2. **每次调用记录到 `log/`**。工具调用、状态变更、提交都写入冒险目录的 `log/`，供审计与排查。
 3. **git 操作只由 `step *` 串行执行**。所有 `git add/commit/tag` 只经由 `step commit` / `step tag`，避免多 channel 并发导致的 `index.lock` 竞争。
 
+### 实现约定：PEP 723 单文件脚本
+
+所有工具实现为带 **PEP 723 内联元数据** 的 Python 单文件脚本，用 `uv run` 执行：
+
+```python
+#!/usr/bin/env python3
+# /// script
+# requires-python = ">=3.11"
+# dependencies = []
+# ///
+```
+
+- `uv run tools/<tool>.py <args>` 按内联元数据临时解析依赖，**无需 venv / pyproject / 安装**，环境隔离、可复现。
+- **优先 `dependencies = []`（纯标准库）**：此时无 uv 也可用 `python3 tools/<tool>.py` 直接运行，最大化宿主无关性；确需三方库时才填 `dependencies`，此后运行依赖 `uv`。
+- 每个工具的 `--help` 必须说明：输入、输出（JSON）、副作用（写 `world/`、`log/`、git）与退出码。
+- 工具随冒险目录一起内嵌并可被 fork；`uv` 是运行前提之一，须写入 `AGENTS.md` 模板。
+
 ### 规则确定性分层（R7/D8）
 
 | 层次 | 由谁负责 | 说明 |
