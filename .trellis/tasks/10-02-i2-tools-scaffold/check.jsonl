@@ -1,0 +1,4 @@
+{"file": "docs/tooling.md", "reason": "核对工具行为、退出码、审计与 PEP 723 约定是否与实现一致"}
+{"file": "docs/visibility.md", "reason": "核对 context build 是否按 channel participants 与 world mask 双重过滤（AC1.4/AC1.9）"}
+{"file": "docs/directory.md", "reason": "核对 scaffold 产物目录树与必需/可选约定（AC1.6）"}
+{"file": ".trellis/spec/backend/protocol-contract.md", "reason": "核对是否违反项目不可违背契约（git 串行、输出即真相、不读 log/）"}

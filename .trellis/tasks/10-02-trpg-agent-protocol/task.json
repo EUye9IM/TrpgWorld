@@ -18,7 +18,10 @@
   "commit": null,
   "pr_url": null,
   "subtasks": [],
-  "children": [],
+  "children": [
+    "10-02-i2-tools-scaffold",
+    "10-02-i3-coc-example"
+  ],
   "parent": null,
   "relatedFiles": [],
   "notes": "",

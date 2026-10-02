@@ -1,0 +1,4 @@
+{"file": ".trellis/spec/backend/protocol-contract.md", "reason": "项目实现契约：工具确定性分层、git 仅由 step* 串行、可见性靠投影、产物可 fork"}
+{"file": "docs/tooling.md", "reason": "工具 CLI 契约（PEP 723 + uv run、审计、state mask、git 步进）"}
+{"file": "docs/visibility.md", "reason": "可见性规则与 World State mask，context build 过滤的依据"}
+{"file": "docs/directory.md", "reason": "冒险目录结构契约，scaffold 产物目录树必须一致"}
