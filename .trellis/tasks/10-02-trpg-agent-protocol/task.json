@@ -1,0 +1,28 @@
+{
+  "id": "trpg-agent-protocol",
+  "name": "trpg-agent-protocol",
+  "title": "重设计 TrpgWorld 为 agent 可编排的 TRPG 协议与目录结构",
+  "description": "将跑 TRPG 的 agent 逻辑从 Python 引擎中抽离，定义一套宿主无关的目录结构与文件契约（工具脚本、skills、角色设定、流程规则、外部资源），让通用/master agent 能读取流程、为每个角色派生独立上下文的子代理并分配工具，按流程编排一整场跑团。首个交付物为需求文档（README + PRD），确认后再改代码。",
+  "status": "in_progress",
+  "dev_type": null,
+  "scope": null,
+  "package": null,
+  "priority": "P1",
+  "creator": "otix",
+  "assignee": "otix",
+  "createdAt": "2026-10-02",
+  "completedAt": null,
+  "branch": "master",
+  "base_branch": "master",
+  "worktree_path": null,
+  "commit": null,
+  "pr_url": null,
+  "subtasks": [],
+  "children": [],
+  "parent": null,
+  "relatedFiles": [],
+  "notes": "",
+  "meta": {
+    "channel": "db"
+  }
+}

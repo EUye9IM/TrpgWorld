@@ -1,0 +1,2 @@
+{"file": ".trellis/tasks/10-02-trpg-agent-protocol/design.md", "reason": "核对 docs/ 是否覆盖设计中的目录契约、工具契约、可见性、持久化与降级"}
+{"file": ".trellis/tasks/10-02-trpg-agent-protocol/research/legacy-inventory.md", "reason": "核对迁移章节是否与旧实现清点一致"}

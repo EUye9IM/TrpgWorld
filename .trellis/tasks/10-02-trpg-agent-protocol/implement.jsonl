@@ -1,0 +1,2 @@
+{"file": ".trellis/tasks/10-02-trpg-agent-protocol/research/legacy-inventory.md", "reason": "旧实现清点与迁移映射，写入 docs/ 的兼容与迁移章节，并供 I2/I3 参考"}
+{"file": ".trellis/tasks/10-02-trpg-agent-protocol/design.md", "reason": "技术设计：目录契约、工具契约、可见性、git 步进的权威依据"}
