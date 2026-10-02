@@ -11,15 +11,15 @@
 
 ## 执行清单（有序）
 
-- [ ] **1. `tools/_lib.py`**：冒险目录定位、JSON 输出、`log/events.jsonl` 追加、git 串行锁、seed/时间工具。
-- [ ] **2. `tools/dice.py`**：`roll --expr --seed [--count]`；`random.Random(seed)`；写 log。
-- [ ] **3. `tools/state.py`**：`get/set/mask`；读写 `world/state.json` 与 `world/visibility.json`；写 log。
-- [ ] **4. `tools/context.py`**：`build --role`（按 participants + world mask 投影）+ `compact --role [--keep]`；投影日志。
-- [ ] **5. `tools/step.py`**：`commit --message`（无变更跳过）+ `tag <name>`；`trpg.lock` 串行。
-- [ ] **6. `templates/adventure/`**：骨架 + `AGENTS.md` 模板（含 `uv` 前提、工具用法、推进方式占位）。
-- [ ] **7. `tools/scaffold.py`**：`new --module --out [--name]`；复制模板 → 解析模组 → 渲染 AGENTS.md → `git init` + 首发提交。
-- [ ] **8. 端到端编译自测**：对 `modules/soup.md` 生成 `/tmp` 冒险目录，跑 AC1.1–AC1.8。
-- [ ] **9. 自洽核对**：产物目录与 `docs/directory.md` 一致；工具行为与 `docs/tooling.md` 一致。
+- [x] **1. `tools/_lib.py`**：冒险目录定位、JSON 输出、`log/events.jsonl` 追加、git 串行锁、seed/时间工具。
+- [x] **2. `tools/dice.py`**：`roll --expr --seed [--count]`；`random.Random(seed)`；写 log。
+- [x] **3. `tools/state.py`**：`get/set/mask`；读写 `world/state.json` 与 `world/visibility.json`；写 log。
+- [x] **4. `tools/context.py`**：`build --role`（按 participants + world mask 投影）+ `compact --role [--keep]`；投影日志。
+- [x] **5. `tools/step.py`**：`commit --message`（无变更跳过）+ `tag <name>`；`trpg.lock` 串行。
+- [x] **6. `templates/adventure/`**：骨架 + `AGENTS.md` 模板（含 `uv` 前提、工具用法、推进方式占位）。
+- [x] **7. `tools/scaffold.py`**：`new --module --out [--name]`；复制模板 → 解析模组 → 渲染 AGENTS.md → `git init` + 首发提交。
+- [x] **8. 端到端编译自测**：对 `modules/soup.md` 生成 `/tmp` 冒险目录，跑 AC1.1–AC1.8。
+- [x] **9. 自洽核对**：产物目录与 `docs/directory.md` 一致；工具行为与 `docs/tooling.md` 一致。
 
 ## 验证命令
 
@@ -57,11 +57,11 @@ python3 tools/dice.py roll --expr 1d100 --seed 42
 ```
 
 人工核对：
-- [ ] AC1.1–AC1.9 逐条通过。
-- [ ] `context build` 不含未参与频道（构造两频道、一个角色只在一个频道，断言另一个不出现）。
-- [ ] `context build` 按 world mask 过滤（pl1 无 `/secrets/**`，kp 有）。
-- [ ] 并发 `step commit` 不报 `index.lock`。
-- [ ] 生成目录的 `AGENTS.md` 单读即可理解如何运行。
+- [x] AC1.1–AC1.9 逐条通过。
+- [x] `context build` 不含未参与频道（构造两频道、一个角色只在一个频道，断言另一个不出现）。
+- [x] `context build` 按 world mask 过滤（pl1 无 `/secrets/**`，kp 有）。
+- [x] 并发 `step commit` 不报 `index.lock`。
+- [x] 生成目录的 `AGENTS.md` 单读即可理解如何运行。
 
 ## 风险文件 / 回滚点
 
@@ -71,9 +71,9 @@ python3 tools/dice.py roll --expr 1d100 --seed 42
 
 ## task.py start 前检查
 
-- [ ] 用户已评审批准 `prd.md` / `design.md` / `implement.md`。
-- [ ] 确认 `check resolve` 归 I3，不在 I2。
-- [ ] `implement.jsonl` / `check.jsonl` 填入真实 spec/research 条目。
+- [x] 用户已评审批准 `prd.md` / `design.md` / `implement.md`。
+- [x] 确认 `check resolve` 归 I3，不在 I2。
+- [x] `implement.jsonl` / `check.jsonl` 填入真实 spec/research 条目。
 
 ## 修订
 

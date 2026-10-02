@@ -34,3 +34,14 @@
 - 不得引入硬编码的单一流程引擎（回到旧 LangGraph 老路）来替代 `flow/` + master 编排。
 - 不得让角色/子代理直接读 `log/`、他人 `roles/`、全量 `channels/`。
 - 不得绕过 `step *` 直接 `git commit`。
+
+## 6. 工具实现约定（I2 落地）
+
+- **形态**：每个工具是 PEP 723 内联元数据的 Python 单文件，`# /// script` 中 `dependencies = []`（纯标准库）；`uv run tools/<t>.py` 与 `python3 tools/<t>.py` 均可运行。
+- **CLI**：argparse 子命令；stdout 为 JSON；退出码 0（成功）/ 1（业务失败）/ 2（用法错误）。
+- **共享库** `tools/_lib.py`：冒险目录定位（`--adventure` 或向上找 `AGENTS.md`）、JSON 输出、`log/events.jsonl` 追加、`.git/trpg.lock` flock 串行锁、JSON 路径 glob + mask 投影。
+- **内嵌副本**：`templates/adventure/tools/{_lib,dice,state,context,step}.py` 必须与框架 `tools/` **逐字节一致**（`scaffold.py` 例外，不内嵌）。
+- **role id 安全**：传入 `--role` 前必须经 `_lib.safe_id()` 校验（拒空、`.`、`..`、`/`、`\`、NUL、控制字符），防止路径穿越。
+- **可见性**：`context build` 双重过滤——channel `participants` + `world/visibility.json` mask；`participants` 全员哨兵为 `["*"]`（也接受 `"public"`）；mask 未命中用 `default`，非 `public`/名单外一律隐藏（fail-closed）。
+- **审计不纳入 git**：`log/events.jsonl` 由模板 `.gitignore` 忽略。
+- **`roles/` 实例**：目录必需，实例在 play-time（车卡）由 master 创建；编译后可为空。

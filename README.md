@@ -72,4 +72,15 @@ TrpgWorld/
 
 ## 当前状态
 
-本阶段（I1）交付物为协议文档（`docs/` + 本 README）。确定性工具、脚手架模板、CoC 7e 系统与端到端示例（I2/I3）为后续增量。
+- **I1（已完成）**：协议文档 `docs/` + 本 README。
+- **I2（已完成）**：通用确定性工具 `tools/`（PEP 723 + `uv run`：`dice` / `state` / `context` / `step` / `scaffold`）与冒险目录脚手架 `templates/adventure/`；`scaffold new` 可将原始模组编译成冒险目录。
+- **I3（待做）**：CoC 7e 规则系统（规则 + 默认 flow + `check resolve`）与 `examples/soup` 端到端示例。
+- **后续**：Pi/dsh 适配插件、人类担任角色、replay。
+
+工具用法详见 [`docs/tooling.md`](./docs/tooling.md)：
+
+```bash
+uv run tools/scaffold.py new --module modules/soup.md --out /tmp/soup
+uv run tools/dice.py roll --expr 1d100 --seed 42
+python3 tools/state.py get sanity --adventure /tmp/soup   # 纯标准库回退
+```

@@ -25,6 +25,7 @@ channel 落盘于 `channels/<id>/`：
 
 始终保留一条**全员公共基线频道**。场景频道是建立在它之上的**叠加层（overlay）**：
 
+- 公共基线频道的 `participants` 用**全员哨兵** `["*"]` 表示（也接受 `"public"`），意为所有角色均可读。
 - 场景频道结束后，master 将**应公开的 `outcome` publish 到公共基线频道**。
 - 未公开的内容只留在该场景频道的 transcript 中，不进入未参与角色的上下文。
 
@@ -51,6 +52,7 @@ tools/context build --role <id>
 规则：
 
 - 场景内容只存于 `channels/<id>/`；**未进入该 channel 的角色不会被喂到**。
+- `context build` 为判定参与关系会枚举 `channels/*/meta.json`，但**只读取该角色参与的频道的 `transcript.md`**，绝不读未参与频道的 transcript。
 - 角色/子代理**只读自己的 `context.jsonl`**：
   - 不读 `log/`；
   - 不读他人 `roles/`；
@@ -76,11 +78,13 @@ World State 是共享真相，但**并非全部公开**——《毒湯》里「�
 }
 ```
 
-- `pattern`：JSON 路径 glob，`*` = 一层，`**` = 子树。
+- `pattern`：JSON 路径 glob，`*` = 一层，`**` = 子树（`**` 可匹配零层，因此 `/secrets/**` 同样覆盖 `/secrets`）。
+- `default`：未命中任何规则时的默认受众。取 `"public"` 表示所有人可见；取 role 列表则仅列表内角色可见；取其他值/名单外角色一律**隐藏（fail-closed）**。
 - `audience`：可见的 role 列表；未命中任何规则则用 `default`。
 - **过滤算法**（在 `tools/context build` 内，纯标准库）：遍历 `state.json` 叶子路径 → 按 `rules` 首个命中定档 → `role ∈ audience` 才保留 → 组装投影 JSON。
 - **可审计**：`tools/state mask --role <id>` 打印该角色可见 / 隐藏的路径。
 - **强制点**：角色**不得**直接调用 `state get` 读原始 `state.json`；只能读 `context build` 产出的投影。`state get/set` 仅给 master / 系统工具（依赖 `tool-gating` 能力，缺则降级为纪律，见 [`capabilities.md`](./capabilities.md)）。
+- **role id 安全**：`--role` 必须是安全 id（不含 `/`、`\`、`..`、空/控制字符），由工具校验；否则退出码 2，防止路径穿越读写 `roles/` 之外的文件。
 
 > **为什么不用 jq**：jq 是一段任意程序，遮不住「到底藏了哪些字段」、难审计、且引入依赖。声明式 mask 是数据、可枚举、可断言（AC3/AC1.4），与「隔离靠机制不靠自律」一致。如确需任意过滤，可作为 agent fork 的高级覆盖，非默认。
 

@@ -14,7 +14,7 @@
 三条不可违逆的约定：
 
 1. **工具输出即真相**（R7/D8）。判定结果、随机点数、状态变更以工具输出为准，任何 agent 的叙事不得覆盖工具输出。
-2. **每次调用记录到 `log/`**。工具调用、状态变更、提交都写入冒险目录的 `log/`，供审计与排查。
+2. **每次调用记录到 `log/`**。工具调用、状态变更、提交都写入冒险目录的 `log/events.jsonl`，供审计与排查。该文件**不纳入 git 提交**（审计不参与恢复，并保证「无变更则跳过提交」可用）；`log/` 目录本身保留。
 3. **git 操作只由 `step *` 串行执行**。所有 `git add/commit/tag` 只经由 `step commit` / `step tag`，避免多 channel 并发导致的 `index.lock` 竞争。
 
 ### 实现约定：PEP 723 单文件脚本
@@ -61,8 +61,9 @@
 
 ### `dice roll`
 
-- **输入**：骰式（如 `1d100`、`2d6+3`）、`--seed <n>`（可选，缺省用注入的确定性种子）。
-- **输出**：JSON，含总点数、各骰面、所用种子。
+- **输入**：`--expr/-e <骰式>`（如 `1d100`、`2d6+3`）、`--seed <n>`（可选）、`--count/-c <n>`（可选，重复掷骰次数）。
+- **输出**：JSON，含 `rolls`、`total`、`seed`、`expr`。
+- **可复现**：给出 `--seed` 时同 seed 同结果；**缺省时自动生成随机种子并写入输出与 `log/`**，便于事后复现。
 - **副作用**：写 `log/`；**秘密骰的点数写入受限位置，不进入公共 transcript**（见 [`visibility.md`](./visibility.md) §4）。
 
 ### `check resolve`
@@ -75,6 +76,7 @@
 ### `state get/set/mask`
 
 - **输入**：`state get <key>`、`state set <key> <value>`、`state mask --role <id>`。
+- **key 语义**：JSON 路径，`.` 与 `/` 等价（`timer.remaining_minutes` ≡ `/timer/remaining_minutes`）；`set` 的 value 先尝试 JSON 解析，失败按字符串。
 - **输出**：JSON；`mask` 打印该角色可见 / 隐藏的路径（可审计）。
 - **副作用**：`set` 写 `world/` 与 `log/`。
 - **说明**：世界状态（时间、地点、旗标、NPC 状态、线索发现情况）**只经此工具修改**。可见性由 `world/visibility.json` 的声明式 mask 控制；**角色不得直接调用 `state get`**，只能读 `context build` 的投影（见 [`visibility.md`](./visibility.md) §2.1）。
@@ -96,24 +98,24 @@
 
 ### `step commit`
 
-- **输入**：`--message <msg>`、可选 `--tag <name>`。
-- **行为**：串行执行 `git add -A && git commit`；带 `--tag` 时同时打 tag。
+- **输入**：`--message/-m <msg>`（必需）、可选 `--tag <name>`。
+- **行为**：串行执行 `git add -A && git commit`（恒为暂存全部）；带 `--tag` 时同时打 tag；无变更时安全跳过（退出码仍 0）。
 - **副作用**：git 提交（可能附带 tag）。
 - **粒度**：**每条消息/每步一次提交**。
 
 ### `step tag`
 
-- **输入**：`--name <tag>`。
+- **输入**：位置参数 `<name>`（如 `scene/003-central-room`），可选 `--force` 覆盖同名 tag。
 - **行为**：串行执行 `git tag`。
 - **副作用**：git tag。
 - **用途**：标记场景与 flow 阶段的**边界**，如 `scene/003-central-room`、`phase/combat`、`compile/<module>`。
 
 ### `scaffold new`
 
-- **输入**：`--template adventure --out <dir>`。
-- **行为**：由 `templates/adventure/` 生成冒险目录骨架，并 `git init`。
+- **输入**：`--module <path>`（原始模组 markdown）、`--out <dir>`、可选 `--name <slug>`、`--template <dir>`（缺省用框架 `templates/adventure/`）、`--force`（输出目录非空时仍写入）。
+- **行为**：由模板生成冒险目录骨架，解析模组填充 `module/`，渲染 `AGENTS.md`，`git init` 并首次提交。
 - **副作用**：创建目录、初始化 git。
-- **阶段**：仅 build-time 使用。
+- **阶段**：仅 build-time 使用（`scaffold.py` 不内嵌进冒险目录）。
 
 ## 4. git 步进契约（R9/D9）
 
