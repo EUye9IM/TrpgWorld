@@ -50,8 +50,8 @@
 |---|---|---|
 | `dice roll` | 带种子的随机源（可复现） | 写 `log/`，返回结果 |
 | `check resolve` | CoC 判定结算（成功等级/对抗/SAN/伤害） | 写 `log/` |
-| `state get/set` | 读写 `world/` 共享状态 | 写 `world/`、`log/` |
-| `context build` | 由 channel/world/memory 投影角色可见上下文 | 写 `roles/<id>/context.jsonl` |
+| `state get/set/mask` | 读写 `world/` 共享状态；打印可见性 mask | 写 `world/`、`log/` |
+| `context build` | 由 channel/world（按 mask）/memory 投影角色可见上下文 | 写 `roles/<id>/context.jsonl` |
 | `context compact` | 短期溢出 → 摘要 | 写 `summary.md`、更新 `context.jsonl` |
 | `step commit` | git add/commit（串行） | git 提交 |
 | `step tag` | 打边界 tag | git tag |
@@ -72,17 +72,17 @@
 - **副作用**：写 `log/`。
 - **说明**：本题为**规则工具**，属可 fork 内容（换规则系统即换实现）。
 
-### `state get/set`
+### `state get/set/mask`
 
-- **输入**：`state get <key>` 或 `state set <key> <value>`。
-- **输出**：JSON，返回当前值或写入结果。
+- **输入**：`state get <key>`、`state set <key> <value>`、`state mask --role <id>`。
+- **输出**：JSON；`mask` 打印该角色可见 / 隐藏的路径（可审计）。
 - **副作用**：`set` 写 `world/` 与 `log/`。
-- **说明**：世界状态（时间、地点、旗标、NPC 状态、线索发现情况）**只经此工具修改**。
+- **说明**：世界状态（时间、地点、旗标、NPC 状态、线索发现情况）**只经此工具修改**。可见性由 `world/visibility.json` 的声明式 mask 控制；**角色不得直接调用 `state get`**，只能读 `context build` 的投影（见 [`visibility.md`](./visibility.md) §2.1）。
 
 ### `context build`
 
 - **输入**：`--role <id>`。
-- **行为**：读该角色参与的 `channels/`、`world/` 中对其可见的部分、以及自身 `roles/<id>/memory.md` 与 `sheet.*`。
+- **行为**：读该角色参与的 `channels/`、`world/state.json` 中按 `world/visibility.json` **mask 对其可见**的部分、以及自身 `roles/<id>/memory.md` 与 `sheet.*`。
 - **输出**：JSON 摘要。
 - **副作用**：生成 `roles/<id>/context.jsonl`——**角色的可见层**。
 - **安全性**：这是**安全关键路径**，做成确定性工具，并由 AC3 验证「不在 channel 中的 PL 投影不含该场景内容、秘密骰点数不出现在投影中」。

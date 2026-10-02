@@ -58,6 +58,32 @@ tools/context build --role <id>
 
 即：**角色读到的只有自己的投影**，隔离由目录/文件位置保证，而非依赖角色「自觉不看」。
 
+### 2.1 World State 的可见性（mask）
+
+World State 是共享真相，但**并非全部公开**——《毒湯》里「汤是人血」、NPC 真实身份都属于知道但 PL 不该知道的秘密。用**声明式 mask** 表达，而不是把秘密拆成多个文件（文件拆分只是它的特例）。
+
+- `world/state.json`：全部世界事实（唯一真相，结构化 JSON）。
+- `world/visibility.json`：可见性 mask（声明式，不用 jq 程序）。
+
+```json
+{
+  "default": "public",
+  "rules": [
+    { "pattern": "/secrets/**",             "audience": ["kp"] },
+    { "pattern": "/npcs/*/true_identity",   "audience": ["kp"] },
+    { "pattern": "/timer/remaining_minutes", "audience": ["kp"] }
+  ]
+}
+```
+
+- `pattern`：JSON 路径 glob，`*` = 一层，`**` = 子树。
+- `audience`：可见的 role 列表；未命中任何规则则用 `default`。
+- **过滤算法**（在 `tools/context build` 内，纯标准库）：遍历 `state.json` 叶子路径 → 按 `rules` 首个命中定档 → `role ∈ audience` 才保留 → 组装投影 JSON。
+- **可审计**：`tools/state mask --role <id>` 打印该角色可见 / 隐藏的路径。
+- **强制点**：角色**不得**直接调用 `state get` 读原始 `state.json`；只能读 `context build` 产出的投影。`state get/set` 仅给 master / 系统工具（依赖 `tool-gating` 能力，缺则降级为纪律，见 [`capabilities.md`](./capabilities.md)）。
+
+> **为什么不用 jq**：jq 是一段任意程序，遮不住「到底藏了哪些字段」、难审计、且引入依赖。声明式 mask 是数据、可枚举、可断言（AC3/AC1.4），与「隔离靠机制不靠自律」一致。如确需任意过滤，可作为 agent fork 的高级覆盖，非默认。
+
 ## 3. 秘密骰
 
 - 秘密骰的点数由工具写入**受限位置**，**不进入公共 transcript**。
