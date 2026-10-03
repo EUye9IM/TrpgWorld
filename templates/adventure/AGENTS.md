@@ -41,6 +41,7 @@
 ## 4. 编译产物速览
 
 - 模组：**{{MODULE_NAME}}**（slug: `{{MODULE_SLUG}}`）
+- 规则系统：{{SYSTEM_NOTE}}
 - 场景（`module/scenes/`）：
 {{SCENE_LIST}}
 - NPC（`module/npcs/`）：

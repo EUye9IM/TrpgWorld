@@ -6,13 +6,15 @@
 """``scaffold`` —— 冒险目录脚手架（build-time）。
 
 子命令：
-* ``scaffold new --module <path> --out <dir> [--name <slug>]``
+* ``scaffold new --module <path> --out <dir> [--name <slug>] [--system <name>]``
 
 流程：复制 ``templates/adventure/`` 骨架 → 复制框架 ``tools/`` → 解析模组 markdown
-→ 写 ``module/{overview.md,scenes/,clues.md,npcs/,hooks.md}`` → 渲染 ``AGENTS.md``
+→ 写 ``module/{overview.md,scenes/,clues.md,npcs/,hooks.md}`` →（可选）带入
+``systems/<name>/`` 的 ``flow/``、``rules/``、``tools/*`` → 渲染 ``AGENTS.md``
 → ``git init`` 并首次提交 + 打 ``compile/<slug>`` tag。
 
-解析保持**通用**（基于 markdown 结构）；CoC 特有语义留待规则系统增强。
+解析保持**通用**（基于 markdown 结构）；CoC 特有语义由 ``--system`` 带入的
+``flow/`` 与 ``rules/`` 提供。
 """
 
 from __future__ import annotations
@@ -27,12 +29,13 @@ from pathlib import Path
 import _lib
 import step
 
-INPUTS = "--module <path> --out <dir> [--name <slug>] [--template <dir>] [--force]"
-OUTPUTS = "JSON: {out, slug, module, scenes, npcs, clues, commit, tag}"
-SIDE_EFFECTS = "创建 --out 目录、复制模板与工具、写 module/*、git init + 首次提交 + tag、追加 out/log/events.jsonl"
+INPUTS = "--module <path> --out <dir> [--name <slug>] [--template <dir>] [--system <name>] [--systems-dir <dir>] [--force] [--no-git]"
+OUTPUTS = "JSON: {out, slug, module, system, scenes, npcs, clues, commit, tag}"
+SIDE_EFFECTS = "创建 --out 目录、复制模板与工具、写 module/*、带入 system 的 flow/rules/tools、git init + 首次提交 + tag（--no-git 时跳过）、追加 out/log/events.jsonl"
 
 FRAMEWORK_ROOT = Path(__file__).resolve().parent.parent
 DEFAULT_TEMPLATE = FRAMEWORK_ROOT / "templates" / "adventure"
+DEFAULT_SYSTEMS_DIR = FRAMEWORK_ROOT / "systems"
 
 #: 随冒险目录内嵌的运行时工具（scaffold 是 build-time 框架工具，不内嵌）。
 EMBEDDED_TOOLS = ("_lib.py", "dice.py", "state.py", "context.py", "step.py")
@@ -272,7 +275,64 @@ def copy_tools(framework_tools: Path, out: Path) -> list[str]:
     return written
 
 
-def render_agents(template_text: str, analysis: dict, *, slug: str, source: str) -> str:
+def replace_tree(src: Path, dst: Path) -> list[str]:
+    """用 ``src`` 目录内容整体替换 ``dst``（先清空 dst），返回相对路径清单。"""
+    if dst.exists():
+        shutil.rmtree(dst)
+    dst.mkdir(parents=True, exist_ok=True)
+    written: list[str] = []
+    for item in sorted(src.rglob("*")):
+        if not item.is_file():
+            continue
+        rel = item.relative_to(src)
+        target = dst / rel
+        target.parent.mkdir(parents=True, exist_ok=True)
+        shutil.copy2(item, target)
+        written.append(str(rel))
+    return written
+
+
+def copy_system(system_dir: Path, out: Path) -> dict:
+    """把规则系统 ``systems/<name>/`` 的 flow/rules/tools 带入冒险目录。
+
+    * ``flow/``  → 冒险 ``flow/``（整体替换模板占位）。
+    * ``rules/`` → 冒险 ``rules/``（整体替换模板占位）。
+    * ``tools/*`` → 冒险 ``tools/``（逐字节复制，不删除内嵌运行时工具）。
+    """
+    written: dict[str, list[str]] = {"flow": [], "rules": [], "tools": []}
+    flow_src = system_dir / "flow"
+    if flow_src.is_dir():
+        written["flow"] = replace_tree(flow_src, out / "flow")
+    rules_src = system_dir / "rules"
+    if rules_src.is_dir():
+        written["rules"] = replace_tree(rules_src, out / "rules")
+    tools_src = system_dir / "tools"
+    if tools_src.is_dir():
+        out_tools = out / "tools"
+        out_tools.mkdir(parents=True, exist_ok=True)
+        for src in sorted(tools_src.iterdir()):
+            if not src.is_file():
+                continue
+            shutil.copy2(src, out_tools / src.name)
+            written["tools"].append(f"tools/{src.name}")
+    return written
+
+
+def system_note(system: str | None) -> str:
+    """渲染 ``AGENTS.md`` 中的规则系统说明行。"""
+    if system:
+        return f"`{system}`（`flow/` 与 `rules/` 来自 `systems/{system}/`）"
+    return "未指定（`flow/` 与 `rules/` 为模板占位）"
+
+
+def render_agents(
+    template_text: str,
+    analysis: dict,
+    *,
+    slug: str,
+    source: str,
+    system: str | None = None,
+) -> str:
     scenes = analysis["scenes"]
     npcs = analysis["npcs"]
     scene_list = "\n".join(
@@ -288,6 +348,7 @@ def render_agents(template_text: str, analysis: dict, *, slug: str, source: str)
         "{{SCENE_LIST}}": scene_list,
         "{{NPC_LIST}}": npc_list,
         "{{CLUE_COUNT}}": str(clue_count),
+        "{{SYSTEM_NOTE}}": system_note(system),
     }
     text = template_text
     for key, value in replacements.items():
@@ -373,45 +434,73 @@ def cmd_new(args: argparse.Namespace) -> int:
     slug = _lib.slugify(args.name or module_path.stem, fallback="adventure")
     source = str(module_path)
 
+    # 规则系统（可选）
+    system: str | None = args.system or None
+    systems_dir = (
+        Path(args.systems_dir).expanduser().resolve() if args.systems_dir else DEFAULT_SYSTEMS_DIR
+    )
+    system_dir: Path | None = None
+    if system:
+        system_dir = systems_dir / system
+        if not system_dir.is_dir():
+            raise _lib.AdventureError(
+                f"system not found: {system_dir} (expected a directory under {systems_dir})"
+            )
+
     copy_template(template_dir, out)
     tools_written = copy_tools(framework_tools, out)
+    system_written = copy_system(system_dir, out) if system_dir else {"flow": [], "rules": [], "tools": []}
+    tools_written.extend(system_written["tools"])
 
     analysis = analyze_module(module_path.read_text(encoding="utf-8"), fallback_title=module_path.stem)
     module_files = write_module(out, analysis, slug=slug, source=source)
 
     template_text = (template_dir / "AGENTS.md").read_text(encoding="utf-8")
-    agents_text = render_agents(template_text, analysis, slug=slug, source=source)
+    agents_text = render_agents(template_text, analysis, slug=slug, source=source, system=system)
     (out / "AGENTS.md").write_text(agents_text, encoding="utf-8")
 
     create_baseline_channel(out, analysis)
 
-    # git init，然后经 step.do_commit 串行首次提交（契约：git add/commit/tag 只走 step）
-    init = _lib.git_init(out)
-    if init.returncode != 0:
-        raise _lib.AdventureError(f"git init failed: {(init.stderr or init.stdout).strip()}")
+    result: dict = {
+        "ok": True,
+        "command": "scaffold new",
+        "out": str(out),
+        "slug": slug,
+        "system": system,
+    }
 
-    result: dict = {"ok": True, "command": "scaffold new", "out": str(out), "slug": slug}
-    commit_result = step.do_commit(
-        out,
-        f"chore(compile): scaffold {slug} from {module_path.name}",
-        tag=f"compile/{slug}",
-        force_tag=True,
-    )
-    result.update({"commit": commit_result.get("commit"), "tag": commit_result.get("tag")})
+    if args.no_git:
+        # 用于把示例目录直接提交进框架仓库（避免嵌套 .git 成为 submodule/被忽略）。
+        result.update({"commit": None, "tag": None, "git": "skipped (--no-git)"})
+        side_effects = ["create adventure directory", "log/events.jsonl"]
+    else:
+        # git init，然后经 step.do_commit 串行首次提交（契约：git add/commit/tag 只走 step）
+        init = _lib.git_init(out)
+        if init.returncode != 0:
+            raise _lib.AdventureError(f"git init failed: {(init.stderr or init.stdout).strip()}")
+        commit_result = step.do_commit(
+            out,
+            f"chore(compile): scaffold {slug} from {module_path.name}",
+            tag=f"compile/{slug}",
+            force_tag=True,
+        )
+        result.update({"commit": commit_result.get("commit"), "tag": commit_result.get("tag")})
+        side_effects = ["create adventure directory", "git init", "git commit", "git tag", "log/events.jsonl"]
 
     _lib.log_event(
         out,
         "scaffold new",
-        {"module": source, "out": str(out), "name": args.name},
+        {"module": source, "out": str(out), "name": args.name, "system": system},
         {
             "slug": slug,
+            "system": system,
             "scenes": len(module_files["scenes"]),
             "npcs": len(module_files["npcs"]),
             "clues": sum(len(v) for v in analysis["clues"].values()),
             "commit": result.get("commit"),
             "tag": result.get("tag"),
         },
-        side_effects=["create adventure directory", "git init", "git commit", "git tag", "log/events.jsonl"],
+        side_effects=side_effects,
     )
 
     result.update(
@@ -419,6 +508,9 @@ def cmd_new(args: argparse.Namespace) -> int:
             "title": analysis["title"],
             "module": source,
             "template": str(template_dir),
+            "system": system,
+            "systemDir": str(system_dir) if system_dir else None,
+            "systemFiles": system_written if system_dir else None,
             "scenes": module_files["scenes"],
             "npcs": module_files["npcs"],
             "clues": sum(len(v) for v in analysis["clues"].values()),
@@ -451,7 +543,7 @@ def build_parser() -> argparse.ArgumentParser:
     new = sub.add_parser(
         "new",
         help="从模组编译一个新的冒险目录",
-        description="复制模板 + 工具 → 解析模组 → 写 module/* → 渲染 AGENTS.md → git init + 首次提交。",
+        description="复制模板 + 工具 → 解析模组 → 写 module/* →（可选）带入 system 的 flow/rules/tools → 渲染 AGENTS.md → git init + 首次提交。",
         formatter_class=argparse.RawDescriptionHelpFormatter,
         epilog=_lib.help_epilog(
             inputs=INPUTS,
@@ -464,7 +556,10 @@ def build_parser() -> argparse.ArgumentParser:
     new.add_argument("--out", required=True, help="输出冒险目录")
     new.add_argument("--name", default=None, help="slug（缺省用模组文件名）")
     new.add_argument("--template", default=None, help="模板目录（缺省为框架 templates/adventure）")
+    new.add_argument("--system", default=None, help="规则系统名（如 coc7e）；带入其 flow/、rules/、tools/*")
+    new.add_argument("--systems-dir", default=None, help="规则系统根目录（缺省为框架 systems/）")
     new.add_argument("--force", action="store_true", help="输出目录非空时仍写入")
+    new.add_argument("--no-git", action="store_true", help="跳过 git init 与首次提交（用于把示例目录提交进框架仓库）")
     return parser
 
 

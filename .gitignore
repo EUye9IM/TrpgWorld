@@ -13,8 +13,8 @@ wheels/
 .env
 
 # Logs
-logs/
-log/
+/logs/
+/log/
 
 # IDE
 .idea/

@@ -151,6 +151,7 @@ def build_parser() -> argparse.ArgumentParser:
         ),
     )
     commit.add_argument("--message", "-m", required=True, help="提交信息（建议结构化）")
+    commit.add_argument("--all", action="store_true", help="暂存全部变更（do_commit 恒执行 git add -A；保留以兼容契约）")
     commit.add_argument("--tag", default=None, help="提交后附带打 tag，如 phase/combat")
     commit.add_argument("--adventure", default=None, help="冒险目录；缺省向上找 AGENTS.md")
 
