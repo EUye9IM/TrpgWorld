@@ -1,0 +1,5 @@
+{"file": "docs/directory.md", "reason": "framework 与 adventure 目录契约，systems/coc7e 与 examples/soup 的落位"}
+{"file": "docs/tooling.md", "reason": "scaffold new 增加 --system 的契约依据"}
+{"file": "docs/visibility.md", "reason": "车卡 channel 的可见性与 context 投影（AC7）"}
+{"file": ".trellis/spec/backend/protocol-contract.md", "reason": "不可违背契约：工具确定性、git 串行、可见性靠投影、逐字节一致"}
+{"file": "modules/soup.md", "reason": "示例模组内容，examples/soup 的编译输入"}

@@ -1,0 +1,4 @@
+{"file": "docs/directory.md", "reason": "核对 systems/coc7e 与 examples/soup 目录是否符合契约"}
+{"file": "docs/tooling.md", "reason": "核对 scaffold --system 行为与工具契约一致"}
+{"file": "docs/visibility.md", "reason": "核对车卡 channel 投影是否按 participants 过滤（AC7）"}
+{"file": ".trellis/spec/backend/protocol-contract.md", "reason": "核对无违反契约（git 串行、内嵌工具一致、不读 log/）"}
