@@ -112,10 +112,20 @@
 
 ### `scaffold new`
 
-- **输入**：`--module <path>`（原始模组 markdown）、`--out <dir>`、可选 `--name <slug>`、`--template <dir>`（缺省用框架 `templates/adventure/`）、`--force`（输出目录非空时仍写入）。
-- **行为**：由模板生成冒险目录骨架，解析模组填充 `module/`，渲染 `AGENTS.md`，`git init` 并首次提交。
-- **副作用**：创建目录、初始化 git。
+- **输入**：`--module <path>`（原始模组 markdown）、`--out <dir>`、可选 `--name <slug>`、`--template <dir>`（缺省用框架 `templates/adventure/`）、可选 `--system <name>`（规则系统，如 `coc7e`）、可选 `--systems-dir <dir>`（规则系统根目录，缺省用框架 `systems/`）、`--force`（输出目录非空时仍写入）、`--no-git`（跳过 `git init` 与首次提交）。
+- **行为**：由模板生成冒险目录骨架，解析模组填充 `module/`；若给 `--system`，则把 `systems/<name>/flow/` 内容带入冒险 `flow/`、`systems/<name>/rules/` 带入冒险 `rules/`（覆盖模板占位），并把 `systems/<name>/tools/*` 逐字节复制到冒险 `tools/`；渲染 `AGENTS.md`（注明所用 system）；`git init` 并首次提交 + 打 `compile/<slug>` tag。
+- **副作用**：创建目录、初始化 git（`--no-git` 时仅创建目录）。
 - **阶段**：仅 build-time 使用（`scaffold.py` 不内嵌进冒险目录）。
+- **兼容**：不带 `--system` 时行为与 I2 一致（使用模板占位 `flow/`、`rules/`）。
+- **示例**：
+
+```bash
+# 带入 CoC 7e 规则系统（flow/ + rules/ + tools/）并 git init
+uv run tools/scaffold.py new --module modules/soup.md --out examples/soup --system coc7e
+
+# 生成示例目录时不初始化嵌套 git（用于把产物直接提交进框架仓库）
+uv run tools/scaffold.py new --module modules/soup.md --out examples/soup --system coc7e --no-git
+```
 
 ## 4. git 步进契约（R9/D9）
 

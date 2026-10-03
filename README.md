@@ -74,13 +74,13 @@ TrpgWorld/
 
 - **I1（已完成）**：协议文档 `docs/` + 本 README。
 - **I2（已完成）**：通用确定性工具 `tools/`（PEP 723 + `uv run`：`dice` / `state` / `context` / `step` / `scaffold`）与冒险目录脚手架 `templates/adventure/`；`scaffold new` 可将原始模组编译成冒险目录。
-- **I3（待做）**：CoC 7e 规则系统（规则 + 默认 flow + `check resolve`）与 `examples/soup` 端到端示例。
-- **后续**：Pi/dsh 适配插件、人类担任角色、replay。
+- **I3（已完成 · 车卡阶段）**：CoC 7e 规则系统 `systems/coc7e/`（车卡规则 + 默认 `flow/`，大成功 = 1–5）与 `examples/soup/` 示例；`scaffold new --system coc7e` 可带入规则系统；车卡阶段端到端冒烟（内联降级）通过。导入/扮演/战斗/理智/结团与 `check resolve` 为后续增量。
+- **后续**：编排驱动 / 独立上下文角色子代理（Pi/dsh 适配）、人类担任角色、replay。
 
 工具用法详见 [`docs/tooling.md`](./docs/tooling.md)：
 
 ```bash
-uv run tools/scaffold.py new --module modules/soup.md --out /tmp/soup
+uv run tools/scaffold.py new --module modules/soup.md --out /tmp/soup --system coc7e
 uv run tools/dice.py roll --expr 1d100 --seed 42
 python3 tools/state.py get sanity --adventure /tmp/soup   # 纯标准库回退
 ```

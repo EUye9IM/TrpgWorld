@@ -43,6 +43,27 @@ TrpgWorld/
 
 > 以上结构是**推荐默认**，可整体 fork 改造。框架仓库中除「`docs/` 描述协议」外没有其它硬性不变量。
 
+### 2.1 规则系统目录 `systems/<name>/`
+
+一个规则系统把**机制**（rules）与**阶段程序**（flow）打包，供 `scaffold new --system <name>` 带入冒险目录：
+
+```
+systems/coc7e/
+├─ README.md                       # 规则系统说明：如何被 scaffold 带入
+├─ rules/
+│   └─ character-creation.md       # 车卡规则（属性/派生/职业技能/判定参数/卡面格式）
+├─ flow/
+│   ├─ flow.md                     # 阶段索引（01 车卡已实现；02–06 后续待补）
+│   └─ phases/
+│       └─ 01-character-creation.md
+└─ tools/                          # 本阶段为空（check resolve 推迟到扮演/战斗阶段）
+    └─ .gitkeep
+```
+
+`scaffold new --system coc7e` 会把 `flow/`、`rules/` 覆盖到冒险对应目录，并把 `systems/coc7e/tools/*`
+**逐字节**复制到冒险 `tools/`。规则系统只描述**机制与参数**，不含硬编码引擎；执行由 agent + 确定性工具完成。
+带 `--system` 后，冒险 `AGENTS.md` 会注明所用 system；不带 `--system` 时保留模板占位 `flow/`、`rules/`。
+
 ## 3. 冒险目录结构（编译产物）
 
 ```
@@ -113,7 +134,7 @@ TrpgWorld/
 
 1. `scaffold new` 由 `templates/adventure/` 生成骨架并 `git init`。
 2. 解析原始模组：`module/scenes/`、`module/clues.md`、`module/npcs/`、`module/hooks.md`。
-3. 带入 `systems/coc7e/` 的默认 `flow/` 与 `rules/`。
+3. 带入 `systems/coc7e/` 的默认 `flow/`、`rules/` 与 `tools/*`（见 [`tooling.md`](./tooling.md) 的 `scaffold new --system`）。
 4. 按模组特性用 `hooks.md` 覆盖个别阶段，并可增删目录/文件、改造工具。
 5. 初始化 `roles/`（KP/PL/NPC）、`channels/`（含公共基线频道）、`world/`。
 6. 生成自描述的 `AGENTS.md`。
