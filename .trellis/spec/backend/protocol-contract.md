@@ -45,3 +45,4 @@
 - **可见性**：`context build` 双重过滤——channel `participants` + `world/visibility.json` mask；`participants` 全员哨兵为 `["*"]`（也接受 `"public"`）；mask 未命中用 `default`，非 `public`/名单外一律隐藏（fail-closed）。
 - **审计不纳入 git**：`log/events.jsonl` 由模板 `.gitignore` 忽略。
 - **`roles/` 实例**：目录必需，实例在 play-time（车卡）由 master 创建；编译后可为空。
+- **规则系统入包**：`systems/<name>/` 提供 `flow/` 、`rules/` 与可选 `tools/`；`scaffold new --system <name>` 将其带入冒险目录（`tools/` 内嵌副本逐字节一致）。`--no-git` 生成无嵌套 git 的纯净产物，用于提交进框架仓库（如 `examples/soup`）；带 git 的冒烟在 `/tmp` 副本执行。
