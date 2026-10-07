@@ -11,11 +11,12 @@
 参数 / 标准输入  →  标准输出（JSON）  +  文件写入  +  审计写入
 ```
 
-三条不可违逆的约定：
+四条不可违逆的约定：
 
 1. **工具输出即真相**（R7/D8）。判定结果、随机点数、状态变更以工具输出为准，任何 agent 的叙事不得覆盖工具输出。
 2. **每次调用记录到 `log/`**。工具调用、状态变更、提交都写入冒险目录的 `log/events.jsonl`，供审计与排查。该文件**不纳入 git 提交**（审计不参与恢复，并保证「无变更则跳过提交」可用）；`log/` 目录本身保留。
 3. **git 操作只由 `step *` 串行执行**。所有 `git add/commit/tag` 只经由 `step commit` / `step tag`，避免多 channel 并发导致的 `index.lock` 竞争。
+4. **工具不管理可见性（位置即权限）**。工具结果只回调用者（stdout）并写审计 `log/`（`log/` 永不投影给角色）；要让结果对角色可见，必须由 master/角色**显式写入** `channels/<id>/`（participants）、`roles/<id>/`（仅自己）或 `world/state.json`（按 mask）。工具**不提供**逐工具的可见性参数；秘密骰 = 不写入公共频道（详见 [`visibility.md`](./visibility.md) §3）。
 
 ### 实现约定：PEP 723 单文件脚本
 
@@ -64,7 +65,7 @@
 - **输入**：`--expr/-e <骰式>`（如 `1d100`、`2d6+3`）、`--seed <n>`（可选）、`--count/-c <n>`（可选，重复掷骰次数）。
 - **输出**：JSON，含 `rolls`、`total`、`seed`、`expr`。
 - **可复现**：给出 `--seed` 时同 seed 同结果；**缺省时自动生成随机种子并写入输出与 `log/`**，便于事后复现。
-- **副作用**：写 `log/`；**秘密骰的点数写入受限位置，不进入公共 transcript**（见 [`visibility.md`](./visibility.md) §4）。
+- **副作用**：写 `log/`。秘密骰由调用者**不把点数写入公共频道**实现（工具不管理可见性，见 [`visibility.md`](./visibility.md) §3），无需 `--secret` 参数。
 
 ### `check resolve`
 
@@ -83,18 +84,20 @@
 
 ### `context build`
 
-- **输入**：`--role <id>`。
-- **行为**：读该角色参与的 `channels/`、`world/state.json` 中按 `world/visibility.json` **mask 对其可见**的部分、以及自身 `roles/<id>/memory.md` 与 `sheet.*`。
-- **输出**：JSON 摘要。
+- **输入**：`--role <id>`、可选 `--debug`。
+- **行为**：读该角色参与的 `channels/`（`open` 频道取全量 transcript，`closed` 频道仅取 `outcome` 纪要）、`world/state.json` 中按 `world/visibility.json` **mask 对其可见**的部分、以及自身 `roles/<id>/memory.md` 与 `sheet.*`；**不以 `log/` 为投影来源**。
+- **输出**：JSON 摘要（`{role, channels, visibility, messages}`）；默认**不含** `worldPaths`，仅 `--debug` 时输出（卫生）。
+- **fail-closed**：`world/visibility.json` 缺失/非法时，world 状态对任何角色均不可见，stderr 警告，stdout 标 `visibility: missing(fail-closed)`。
 - **副作用**：生成 `roles/<id>/context.jsonl`——**角色的可见层**。
 - **安全性**：这是**安全关键路径**，做成确定性工具，并由 AC3 验证「不在 channel 中的 PL 投影不含该场景内容、秘密骰点数不出现在投影中」。
 
 ### `context compact`
 
 - **输入**：`--role <id>`（可选 `--keep <n>` 保留最近 n 轮）。
-- **行为**：短期记忆溢出时，将较早内容压缩为摘要。
+- **行为**：短期记忆溢出时，将较早内容压缩为摘要（角色**私有记忆**摘要）。
 - **副作用**：写 `roles/<id>/summary.md`，并裁剪更新 `roles/<id>/context.jsonl`。
 - **触发**：场景结束时由 master 触发（见 [`visibility.md`](./visibility.md) §5）。
+- **与控制体积的关系**：`compact` 只处理角色私有记忆；`context build` 的体积主要由**频道状态**控制——已关闭频道只贡献 `outcome` 纪要（见 [`visibility.md`](./visibility.md) §1）。
 
 ### `step commit`
 

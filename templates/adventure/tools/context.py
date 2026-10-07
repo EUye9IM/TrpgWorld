@@ -6,17 +6,22 @@
 """``context`` —— 角色可见上下文投影与压缩（安全关键路径）。
 
 子命令：
-* ``context build --role <id>``               生成 ``roles/<id>/context.jsonl``
+* ``context build --role <id> [--debug]``   生成 ``roles/<id>/context.jsonl``
 * ``context compact --role <id> [--keep N]``  短期溢出 → ``roles/<id>/summary.md``
 
 ``build`` 只读取：
 
 1. ``channels/*/meta.json`` 中 ``participants`` 含该 role（或哨兵 ``*``/``public``）的频道；
+   其中 ``status == "closed"`` 的频道只贡献 ``outcome`` 纪要，``open`` 频道才贡献全量
+   transcript（避免已关闭场景被反复重放）；
 2. ``world/state.json`` 经 ``world/visibility.json`` mask 过滤后的可见部分；
 3. 该角色自己的 ``roles/<id>/{persona,memory,summary}.md`` 与 ``sheet.*``。
 
 它**不读** ``log/``、他人 ``roles/``、也不整体读取 ``channels/``；未参与频道的
 transcript 不会进入投影。秘密隔离由本工具保证，而非角色自律。
+
+**fail-closed**：``world/visibility.json`` 缺失/非法时按空受众处理（任何角色都看不到
+world 状态），并在 stderr 警告、在 stdout 标记 ``visibility: missing(fail-closed)``。
 """
 
 from __future__ import annotations
@@ -28,8 +33,8 @@ from pathlib import Path
 
 import _lib
 
-INPUTS = "build: --role <id>；compact: --role <id> [--keep N]"
-OUTPUTS = "JSON: {role, channels, worldPaths, messages} / {before, after, summarized}"
+INPUTS = "build: --role <id> [--debug]；compact: --role <id> [--keep N]"
+OUTPUTS = "JSON: {role, channels, visibility, messages[, worldPaths]} / {before, after, summarized}"
 SIDE_EFFECTS = "build 写 roles/<id>/context.jsonl；compact 写 summary.md 并截断 context.jsonl；均追加 log/events.jsonl"
 
 
@@ -39,8 +44,19 @@ def participants_include(participants, role: str) -> bool:
     return role in participants or _lib.PUBLIC in participants or "*" in participants
 
 
+def _read_transcript(channel_dir: Path) -> str:
+    transcript_path = channel_dir / "transcript.md"
+    return transcript_path.read_text(encoding="utf-8") if transcript_path.exists() else ""
+
+
 def load_channels(adventure: Path, role: str) -> list[dict]:
-    """返回该角色参与、且按 id 排序的频道（含 transcript）。"""
+    """返回该角色参与、且按 id 排序的频道。
+
+    **频道状态驱动投影**：``status == "closed"`` 的频道只贡献其 ``outcome`` 纪要
+    （``meta.json.outcome`` 字符串或 ``outcome.md`` 文件），**不再读取全量 transcript**；
+    ``open``（或未声明 status）的频道贡献全量 transcript。``closed`` 却缺少 outcome
+    时回退为 transcript 并在 stderr 警告。
+    """
     channels_dir = adventure / "channels"
     if not channels_dir.is_dir():
         return []
@@ -54,15 +70,37 @@ def load_channels(adventure: Path, role: str) -> list[dict]:
         if not participants_include(participants, role):
             continue
         cid = meta_path.parent.name
-        transcript_path = meta_path.parent / "transcript.md"
-        transcript = transcript_path.read_text(encoding="utf-8") if transcript_path.exists() else ""
+        channel_dir = meta_path.parent
+        status = meta.get("status", "") or ""
+
+        if status == "closed":
+            outcome = meta.get("outcome")
+            if not (isinstance(outcome, str) and outcome.strip()):
+                outcome_path = channel_dir / "outcome.md"
+                if outcome_path.exists():
+                    outcome = outcome_path.read_text(encoding="utf-8")
+            if isinstance(outcome, str) and outcome.strip():
+                body = outcome.strip()
+                mode = "outcome"
+            else:
+                _lib.warn(
+                    f"channel/{cid} status=closed 但缺少 outcome；"
+                    "回退为全量 transcript"
+                )
+                body = _read_transcript(channel_dir)
+                mode = "transcript(fallback)"
+        else:
+            body = _read_transcript(channel_dir)
+            mode = "transcript"
+
         included.append(
             {
                 "id": cid,
                 "purpose": meta.get("purpose", ""),
                 "participants": participants,
-                "status": meta.get("status", ""),
-                "transcript": transcript,
+                "status": status,
+                "mode": mode,
+                "transcript": body,
             }
         )
     return included
@@ -81,7 +119,7 @@ def load_role_files(adventure: Path, role: str) -> dict[str, str]:
     return files
 
 
-def build_messages(adventure: Path, role: str) -> tuple[list[dict], list[dict], list[str]]:
+def build_messages(adventure: Path, role: str) -> tuple[list[dict], list[dict], list[str], dict]:
     visibility = _lib.read_visibility(adventure)
     state = _lib.read_json(adventure / "world" / "state.json", {})
     projection, details = _lib.build_projection(state, visibility, role)
@@ -125,16 +163,22 @@ def build_messages(adventure: Path, role: str) -> tuple[list[dict], list[dict], 
                 "role": "user",
                 "source": f"channel/{channel['id']}",
                 "purpose": channel["purpose"],
+                "mode": channel["mode"],
                 "content": header + "\n\n" + channel["transcript"].strip(),
             }
         )
-    return messages, channels, visible_paths
+    return messages, channels, visible_paths, visibility
 
 
 def cmd_build(args: argparse.Namespace) -> int:
     adventure = _lib.find_adventure(adventure=args.adventure)
     role = _lib.safe_id(args.role, kind="role id")
-    messages, channels, visible_paths = build_messages(adventure, role)
+    messages, channels, visible_paths, visibility = build_messages(adventure, role)
+
+    if visibility.get("_missing"):
+        _lib.warn(
+            "world/visibility.json 缺失或非法：fail-closed，任何角色都看不到 world 状态"
+        )
 
     role_dir = adventure / "roles" / role
     role_dir.mkdir(parents=True, exist_ok=True)
@@ -148,11 +192,13 @@ def cmd_build(args: argparse.Namespace) -> int:
         "command": "context build",
         "role": role,
         "channels": [c["id"] for c in channels],
-        "worldPaths": visible_paths,
+        "visibility": "missing(fail-closed)" if visibility.get("_missing") else "ok",
         "messages": len(messages),
         "contextFile": str(context_path.relative_to(adventure)),
         "adventure": str(adventure),
     }
+    if args.debug:
+        output["worldPaths"] = visible_paths
     _lib.log_event(
         adventure,
         "context build",
@@ -280,6 +326,11 @@ def build_parser() -> argparse.ArgumentParser:
         ),
     )
     build.add_argument("--role", required=True, help="角色 id，如 kp、pl1")
+    build.add_argument(
+        "--debug",
+        action="store_true",
+        help="在 stdout 额外输出 worldPaths（默认不输出，避免暴露内部路径清单）",
+    )
     build.add_argument("--adventure", default=None, help="冒险目录；缺省向上找 AGENTS.md")
 
     compact = sub.add_parser(

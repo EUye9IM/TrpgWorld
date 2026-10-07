@@ -177,6 +177,10 @@ def cmd_mask(args: argparse.Namespace) -> int:
     role = _lib.safe_id(args.role, kind="role id")
     state = load_state(adventure)
     visibility = _lib.read_visibility(adventure)
+    if visibility.get("_missing"):
+        _lib.warn(
+            "world/visibility.json 缺失或非法：fail-closed，全部路径对该角色均隐藏"
+        )
     _, details = _lib.build_projection(state, visibility, role)
     visible = [d["path"] for d in details if d["visible"]]
     hidden = [d["path"] for d in details if not d["visible"]]
@@ -184,6 +188,7 @@ def cmd_mask(args: argparse.Namespace) -> int:
         "ok": True,
         "command": "state mask",
         "role": role,
+        "visibility": "missing(fail-closed)" if visibility.get("_missing") else "ok",
         "default": visibility.get("default"),
         "rules": visibility.get("rules", []),
         "visible": visible,

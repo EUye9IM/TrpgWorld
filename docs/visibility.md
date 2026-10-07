@@ -18,8 +18,11 @@
 
 channel 落盘于 `channels/<id>/`：
 
-- `meta.json`：`purpose` / `participants` / `termination` / `status`。
+- `meta.json`：`purpose` / `participants` / `termination` / `status`（`open` / `closed`）/ `outcome`（关闭纪要字符串）。
 - `transcript.md`：对话转录。
+- `outcome.md`：可选的关闭纪要文件，等价于 `meta.json.outcome`。
+
+**状态驱动投影**：频道一旦 `status == "closed"`，其 transcript 不再参与角色上下文投影——`context build` 只取 `outcome` 纪要；只有 `open` 频道才贡献全量 transcript。这样已关闭场景对投影的贡献固定为纪要长度，上下文体积不随历史线性增长（见 §2）。
 
 ### 公共基线频道
 
@@ -52,7 +55,8 @@ tools/context build --role <id>
 规则：
 
 - 场景内容只存于 `channels/<id>/`；**未进入该 channel 的角色不会被喂到**。
-- `context build` 为判定参与关系会枚举 `channels/*/meta.json`，但**只读取该角色参与的频道的 `transcript.md`**，绝不读未参与频道的 transcript。
+- `context build` 为判定参与关系会枚举 `channels/*/meta.json`，但**只读取该角色参与的频道的内容**：`status == "closed"` 的频道读取 `outcome` 纪要，`open` 频道读取 `transcript.md`；**绝不读未参与频道的任何文件**。`closed` 却缺少 outcome 时回退 transcript 并在 stderr 警告。
+- 投影来源**仅**：`roles/<id>/*`（自身）、`world/state.json`（按 mask 过滤）、`channels/`（仅参与频道）。**不以 `log/` 为来源**；`log/` 是系统审计，永不投影给角色。
 - 角色/子代理**只读自己的 `context.jsonl`**：
   - 不读 `log/`；
   - 不读他人 `roles/`；
@@ -79,7 +83,8 @@ World State 是共享真相，但**并非全部公开**——《毒湯》里「�
 ```
 
 - `pattern`：JSON 路径 glob，`*` = 一层，`**` = 子树（`**` 可匹配零层，因此 `/secrets/**` 同样覆盖 `/secrets`）。
-- `default`：未命中任何规则时的默认受众。取 `"public"` 表示所有人可见；取 role 列表则仅列表内角色可见；取其他值/名单外角色一律**隐藏（fail-closed）**。
+- `default`：未命中任何规则时的默认受众。取 `"public"` 表示所有人可见；取 role 列表则仅列表内角色可见；取空列表、其他值或名单外角色一律**隐藏（fail-closed）**。
+- **缺文件即 fail-closed**：`world/visibility.json` **缺失、为空、无法读取（编码/IO 错误）、非法 JSON、不是 JSON 对象，或 `rules` 不是列表**时，`default` 视作**空受众**（`[]`）——任何角色都看不到 world 状态，并在 stderr 输出显式警告（`context build` 同时在 stdout 标 `visibility: missing(fail-closed)`）。**绝不**退化为 `default: public`。mask 是「允许清单」：**无清单 = 不放行**，与「隔离靠机制」一致。
 - `audience`：可见的 role 列表；未命中任何规则则用 `default`。
 - **过滤算法**（在 `tools/context build` 内，纯标准库）：遍历 `state.json` 叶子路径 → 按 `rules` 首个命中定档 → `role ∈ audience` 才保留 → 组装投影 JSON。
 - **可审计**：`tools/state mask --role <id>` 打印该角色可见 / 隐藏的路径。
@@ -88,11 +93,28 @@ World State 是共享真相，但**并非全部公开**——《毒湯》里「�
 
 > **为什么不用 jq**：jq 是一段任意程序，遮不住「到底藏了哪些字段」、难审计、且引入依赖。声明式 mask 是数据、可枚举、可断言（AC3/AC1.4），与「隔离靠机制不靠自律」一致。如确需任意过滤，可作为 agent fork 的高级覆盖，非默认。
 
-## 3. 秘密骰
+## 3. 工具结果与可见性（工具不管理可见性 / 位置即权限）
 
-- 秘密骰的点数由工具写入**受限位置**，**不进入公共 transcript**。
-- 对外只发**「可公开的结果事件」**（例如「你感到一阵寒意，检定结果失败」，而非点数本身）。
-- 因此不在该场景中的 PL，其上下文投影中**既不含场景内容，也不含秘密骰点数**（AC3 验证点）。
+**工具不管理可见性。** 确定性工具（`dice` / `check` / `state` …）对结果只做两件事：
+
+1. **回给调用者**（stdout JSON）；
+2. 写入**系统审计** `log/events.jsonl`——`log/` 属系统层，**永不投影给角色**。
+
+要让某个结果对某些角色可见，必须由 master / 角色**显式写入**相应位置：
+
+| 写入位置 | 可见范围 |
+|---|---|
+| `channels/<id>/transcript.md` | 该频道 `participants` |
+| `channels/<id>/outcome.md` | 频道关闭后按 §1 投影的纪要受众 |
+| `roles/<id>/` | 仅该角色自己 |
+| `world/state.json` | 按 `world/visibility.json` mask |
+
+即 **可见性 = 写入位置**。工具**没有**逐工具的可见性参数（如 `--secret`）；任何工具一律适用同一原则。
+
+**推论（秘密骰）**：秘密骰 = 调用者**不把点数写进公共频道**，因此自动隔离，无需 `--secret`。
+对外只发「可公开的结果事件」（例如「你感到一阵寒意，检定结果失败」，而非点数本身）。
+因此不在该场景中的 PL，其上下文投影中**既不含场景内容，也不含秘密骰点数**。
+审计日志 `log/` 中出现敏感值是**可接受**的：它永不投影、且不纳入 git（见 [`tooling.md`](./tooling.md) §1）。
 
 ## 4. 记忆分层与压缩（R10）
 
@@ -106,7 +128,9 @@ World State 是共享真相，但**并非全部公开**——《毒湯》里「�
 - **滚动摘要** = 场景级摘要，承接被挤出短期窗口的内容。
 - **长期笔记 + 卡面** = `memory.md`（关系/线索/秘密）与 `sheet.*`（角色卡），全场持久。
 
-**压缩触发**：**场景结束时**由 master 触发 `context compact`，把短期溢出转为摘要并更新 `context.jsonl`，从而控制上下文体积、避免长跑团膨胀。
+**压缩触发**：**场景结束时**由 master 触发 `context compact`，把角色**私有记忆**（`memory.md` / `summary.md`）的短期溢出转为摘要并更新 `context.jsonl`。
+
+控制 `context build` 体积的**主要手段是关闭频道**（`status: closed` + `outcome`，见 §1）：已关闭频道只贡献纪要，因此压缩后再次 build **不会重放**该频道的历史全量转录。`compact` 的职责收敛为「角色私有记忆摘要」，不再承担「控住 build 体积」。
 
 ## 5. 可见性工作流摘要
 

@@ -68,6 +68,11 @@ def emit_error(message: str, *, code: str = "error", extra: dict | None = None) 
     emit(payload)
 
 
+def warn(message: str) -> None:
+    """把警告写到 stderr（stdout 契约始终保持为 JSON，故警告不走 stdout）。"""
+    print(f"warning: {message}", file=sys.stderr)
+
+
 def read_json(path: str | Path, default: Any = None) -> Any:
     """读取 JSON 文件；不存在或为空时返回 ``default``。"""
     p = Path(path)
@@ -295,7 +300,7 @@ def decide_path(
         if pattern and match_path(pattern, path):
             audience = rule.get("audience")
             return pattern, audience, _audience_allows(audience, role)
-    default = visibility.get("default", PUBLIC)
+    default = visibility.get("default", [])
     return None, default, _audience_allows(default, role)
 
 
@@ -353,11 +358,25 @@ def build_projection(
 
 
 def read_visibility(adventure: str | Path) -> dict:
-    """读取 ``world/visibility.json``；缺省为全公开、无规则。"""
-    data = read_json(Path(adventure) / "world" / "visibility.json", None)
+    """读取 ``world/visibility.json``（可见性**允许清单**）。
+
+    **fail-closed**：文件缺失、为空、无法读取（编码/IO 错误）、非法 JSON、不是 JSON
+    对象，或 ``rules`` 不是列表时，返回空受众（``default: []``）并标记
+    ``_missing: True``——此时**任何角色都看不到 world 状态**，绝不退化为
+    ``default: public``。调用方应检测 ``_missing`` 并向 stderr 输出显式警告。
+
+    没有 ``default`` 键的合法对象同样取空受众（无清单 = 不放行），但不标 ``_missing``。
+    """
+    path = Path(adventure) / "world" / "visibility.json"
+    try:
+        data = read_json(path, None)
+    except (json.JSONDecodeError, UnicodeDecodeError, OSError):
+        data = None
     if not isinstance(data, dict):
-        return {"default": PUBLIC, "rules": []}
-    data.setdefault("default", PUBLIC)
+        return {"default": [], "rules": [], "_missing": True}
+    if "rules" in data and not isinstance(data["rules"], list):
+        return {"default": [], "rules": [], "_missing": True}
+    data.setdefault("default", [])
     data.setdefault("rules", [])
     return data
 
