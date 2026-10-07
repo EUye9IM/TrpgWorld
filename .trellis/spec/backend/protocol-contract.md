@@ -46,3 +46,10 @@
 - **审计不纳入 git**：`log/events.jsonl` 由模板 `.gitignore` 忽略。
 - **`roles/` 实例**：目录必需，实例在 play-time（车卡）由 master 创建；编译后可为空。
 - **规则系统入包**：`systems/<name>/` 提供 `flow/` 、`rules/` 与可选 `tools/`；`scaffold new --system <name>` 将其带入冒险目录（`tools/` 内嵌副本逐字节一致）。`--no-git` 生成无嵌套 git 的纯净产物，用于提交进框架仓库（如 `examples/soup`）；带 git 的冒烟在 `/tmp` 副本执行。
+
+## 7. core 不变量（I5 落地）
+
+- **fail-closed mask**：`world/visibility.json` 缺失/非法/读不到时，`default` = **空受众**（任何角色都看不到 world 状态）并警告；**绝不**退化为全公开。
+- **频道状态驱动投影**：`context build` 对 `status=open` 频道用全量 `transcript.md`，对 `status=closed` 频道只用 `outcome`（或 `outcome.md`）；closed 无 outcome 时回退 transcript 并警告。这防止「压缩→重放」膨胀。
+- **工具结果可见性**：**工具不管理可见性**——结果只回调用者 + 写系统审计 `log/`（永不投影）；可见性 = **写入位置**（`channels/` / `roles/<id>/` / `world/`）。**不得**给工具添加逐工具可见性参数（如 `--secret`）。
+- **`context build` 默认不输出 `worldPaths`**（仅 `--debug`）；且不以 `log/` 作为投影来源。
