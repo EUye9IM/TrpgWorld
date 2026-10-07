@@ -1,0 +1,4 @@
+{"file": "docs/visibility.md", "reason": "投影来源、mask 语义、频道可见性；F1/F2/F4 的契约依据"}
+{"file": "docs/tooling.md", "reason": "工具契约（context build / state mask / dice 审计）；F3/F4 的契约依据"}
+{"file": ".trellis/spec/backend/protocol-contract.md", "reason": "不可违背契约：可见性靠机制、工具输出即真相、log 不投影"}
+{"file": ".trellis/tasks/10-04-i4-host-plugins/research/plugin-capability-review.md", "reason": "缺陷发现来源与安全分析（F1–F4）"}

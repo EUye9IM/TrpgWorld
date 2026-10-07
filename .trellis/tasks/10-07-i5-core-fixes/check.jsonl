@@ -1,0 +1,3 @@
+{"file": "docs/visibility.md", "reason": "核对 fail-closed 语义、closed/outcome 投影、工具结果通用原则是否与实现一致"}
+{"file": "docs/tooling.md", "reason": "核对 context build --debug 与工具审计契约"}
+{"file": ".trellis/spec/backend/protocol-contract.md", "reason": "核对无违反契约（log 不投影、内嵌工具一致）"}
