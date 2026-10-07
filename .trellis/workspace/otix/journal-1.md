@@ -95,3 +95,46 @@
 
 - 后续阶段（导入/扮演/战斗/理智/结团）与 check resolve
 - 编排驱动 / 独立上下文角色子代理（适配层 I4）
+
+
+## Session 3: I4 审查 + I5 core 修复 + 阶段性状态
+<!-- trellis-session: v=2 fp=b7b09e45a42e55d8 -->
+
+**Date**: 2026-10-07
+**Task**: I4 审查 + I5 core 修复 + 阶段性状态
+**Branch**: `master`
+
+### Summary
+
+对宿主插件能力契约做批判性审查，据此修复 core 缺陷（F1–F4）并补 README 阶段性状态。
+
+### Main Changes
+
+- I4：角色运行时契约 v2 规划 + 插件能力批判性审查报告
+- I5：mask fail-closed、频道状态驱动投影（closed→outcome）、worldPaths 卫生
+- 工具结果可见性通用原则：工具不管理可见性 / 位置即权限（替代 --secret）
+- README：已完成 / 未完成 / 已知边界 阶段性状态
+
+### Git Commits
+
+| Hash | Message |
+|------|---------|
+| `11c490d` | chore(task): I4 规划（角色运行时契约 v2 + 最小 Pi 插件）+ I5 占位 |
+| `b4de54c` | chore(task): I5 规划（core 缺陷 F1–F4） |
+| `21bb940` | fix(core): F1-F3 修复 + F4 工具可见性通用原则 |
+| `4a87557` | chore(spec): core 不变量（fail-closed / closed→outcome / 工具可见性）+ I5 规划 |
+| `416e89a` | docs(readme): 阶段性状态（已完成/未完成/已知边界） |
+| `7a1e13e` | chore(task): archive 10-07-i5-core-fixes |
+
+### Testing
+
+- [OK] trellis-check 独立复现 I5 AC1–AC5；补修 UnicodeDecodeError 与潜在 fail-open
+
+### Status
+
+[OK] **Completed**
+
+### Next Steps
+
+- I4：契约 v2 文档 + Pi 插件（trpg_role/trpg_dice）实现
+- core 自动化测试（当前无 tests/CI）
