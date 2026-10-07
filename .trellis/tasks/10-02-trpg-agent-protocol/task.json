@@ -20,7 +20,9 @@
   "subtasks": [],
   "children": [
     "10-02-i2-tools-scaffold",
-    "10-02-i3-coc-example"
+    "10-02-i3-coc-example",
+    "10-04-i4-host-plugins",
+    "10-07-i5-core-fixes"
   ],
   "parent": null,
   "relatedFiles": [],
