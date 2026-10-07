@@ -70,12 +70,37 @@ TrpgWorld/
 
 原始模组示例见 [`modules/soup.md`](./modules/soup.md) 与 [`modules/example.md`](./modules/example.md)。
 
-## 当前状态
+## 当前状态（阶段性归档）
 
-- **I1（已完成）**：协议文档 `docs/` + 本 README。
-- **I2（已完成）**：通用确定性工具 `tools/`（PEP 723 + `uv run`：`dice` / `state` / `context` / `step` / `scaffold`）与冒险目录脚手架 `templates/adventure/`；`scaffold new` 可将原始模组编译成冒险目录。
-- **I3（已完成 · 车卡阶段）**：CoC 7e 规则系统 `systems/coc7e/`（车卡规则 + 默认 `flow/`，大成功 = 1–5）与 `examples/soup/` 示例；`scaffold new --system coc7e` 可带入规则系统；车卡阶段端到端冒烟（内联降级）通过。导入/扮演/战斗/理智/结团与 `check resolve` 为后续增量。
-- **后续**：编排驱动 / 独立上下文角色子代理（Pi/dsh 适配）、人类担任角色、replay。
+> 本阶段完成：协议框架 + 通用工具 + CoC 车卡阶段 + core 加固。**宿主插件已规划但未实现**。
+
+### 已完成
+
+| 里程碑 | 内容 |
+|---|---|
+| **I1** | 中文协议文档 `docs/`（protocol / directory / tooling / visibility / capabilities）+ 本 README |
+| **I2** | 通用确定性工具 `tools/`（PEP 723 + `uv run`：`dice` / `state` / `context` / `step` / `scaffold`）+ 脚手架 `templates/adventure/` |
+| **I3** | CoC 7e **车卡阶段**：`systems/coc7e/`（车卡规则 + 默认 `flow/`，大成功 = 1–5）+ `examples/soup/`；`scaffold --system` 带入规则系统；车卡冒烟通过（内联降级） |
+| **I5** | core 加固：mask **fail-closed**；频道状态驱动投影（closed→outcome，停止重放膨胀）；`worldPaths` 仅 `--debug`；**工具结果可见性通用原则**（位置即权限，不加 `--secret`） |
+
+### 未完成 / 后续
+
+| 项 | 状态 |
+|---|---|
+| **I4 宿主插件**（角色运行时契约 v2 + Pi 插件 `trpg_role` / `trpg_dice`） | **已规划、未实现**；机制化隔离 / 金丝雀测试 / C11–C17 预留 |
+| CoC 后续阶段：导入 / 扮演·调查 / 战斗 / 理智 / 结团 | 未做 |
+| `check resolve` 判定工具 | 未实现（`systems/coc7e/tools/` 为空） |
+| dsh 插件适配 | 未做 |
+| 真·独立上下文角色子代理 | 未做（仅文档与计划） |
+| 人类担任角色、replay 回放 | 未做 |
+| core 自动化测试 / CI | **缺失**（当前仅手工验证） |
+
+### 已知边界
+
+- **内联降级**：无子代理时角色共享同一上下文，隔离较弱（已知代价）。
+- **隔离强度**：插件方案为「prompt 约束 + 不给 fs/bash」，属**临时**手段；机制化三层隔离与金丝雀测试待做。
+- **模型先验剧透（L10）**：机制只能保证「没注入的看不到」，不能阻止模型本来就知道（如《毒湯》是知名谜题）。
+- **无 `tests/` 与 CI**：安全关键逻辑（fail-closed、投影）目前靠手工验证。
 
 工具用法详见 [`docs/tooling.md`](./docs/tooling.md)：
 
